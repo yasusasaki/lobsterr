@@ -848,7 +848,7 @@ async function fetchRSS(source) {
             title:       (item.title || '').trim(),
             description: stripHtml(item.description || item.content || '').slice(0, 500),
             link:        item.link || '',
-            image:       item.enclosure?.link || item.thumbnail || extractImg(item.content || item.description || ''),
+            image:       item.enclosure?.link || item.thumbnail || extractImg(item.content || item.description || '') || null,
             date:        fmtDate(item.pubDate),
             source:      source.name,
             score:       null,

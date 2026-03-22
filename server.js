@@ -80,6 +80,92 @@ function proxyToAnthropic(reqBody, res) {
     apiReq.end();
 }
 
+// RSS XML を直接取得（リダイレクト対応）
+function fetchRawUrl(targetUrl, callback, redirectCount = 0) {
+    if (redirectCount > 5) { callback(new Error('Too many redirects')); return; }
+    let parsed;
+    try { parsed = new URL(targetUrl); } catch(e) { callback(e); return; }
+
+    const lib = parsed.protocol === 'https:' ? https : http;
+    const options = {
+        hostname: parsed.hostname,
+        path:     parsed.pathname + parsed.search,
+        method:   'GET',
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; Lobsterr/1.0; +https://lobsterr.onrender.com)',
+            'Accept':     'application/rss+xml, application/xml, text/xml, application/atom+xml, */*',
+        },
+        timeout: 12000,
+    };
+    const r = lib.request(options, res => {
+        if ([301,302,303,307,308].includes(res.statusCode) && res.headers.location) {
+            const next = res.headers.location.startsWith('http')
+                ? res.headers.location
+                : `${parsed.protocol}//${parsed.hostname}${res.headers.location}`;
+            res.resume();
+            fetchRawUrl(next, callback, redirectCount + 1);
+            return;
+        }
+        const chunks = [];
+        res.on('data', c => chunks.push(c));
+        res.on('end', () => callback(null, Buffer.concat(chunks).toString('utf-8')));
+    });
+    r.on('error', callback);
+    r.on('timeout', () => { r.destroy(); callback(new Error('Timeout')); });
+    r.end();
+}
+
+// RSS / Atom XML をパースして rss2json 互換 JSON を返す
+function parseRSSXML(xml, maxCount) {
+    const get = (str, tags) => {
+        for (const tag of [].concat(tags)) {
+            // CDATA
+            let m = str.match(new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]>`, 'i'));
+            if (m) return m[1].trim();
+            // 通常テキスト
+            m = str.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i'));
+            if (m) return m[1].replace(/<[^>]*>/g, '').trim();
+        }
+        return '';
+    };
+    const getAttr = (str, tag, attr) => {
+        const m = str.match(new RegExp(`<${tag}[^>]+${attr}=["']([^"']+)["']`, 'i'));
+        return m ? m[1] : '';
+    };
+    const getLinkHref = (str) => {
+        // Atom <link href="..."> or RSS <link>...</link>
+        const m = str.match(/<link[^>]+href=["']([^"']+)["'][^>]*\/?>/i)
+               || str.match(/<link[^>]*rel=["']alternate["'][^>]+href=["']([^"']+)["']/i);
+        if (m) return m[1];
+        return get(str, 'link');
+    };
+
+    // RSS items or Atom entries
+    const isAtom  = /<feed[^>]*xmlns/i.test(xml);
+    const tag     = isAtom ? 'entry' : 'item';
+    const matches = [...xml.matchAll(new RegExp(`<${tag}[\\s>]([\\s\\S]*?)<\\/${tag}>`, 'g'))];
+
+    const items = matches.slice(0, maxCount).map(m => {
+        const s         = m[1];
+        const link      = getLinkHref(s) || get(s, ['guid','id']);
+        const thumbnail = getAttr(s, 'media:thumbnail', 'url')
+                       || getAttr(s, 'media:content', 'url')
+                       || getAttr(s, 'enclosure', 'url') || '';
+        return {
+            title:       get(s, 'title')                                    || '',
+            link:        link                                               || '',
+            description: get(s, ['description','summary'])                  || '',
+            content:     get(s, ['content:encoded','content','description']) || '',
+            pubDate:     get(s, ['pubDate','published','updated','dc:date']) || '',
+            guid:        get(s, ['guid','id']) || link                      || '',
+            thumbnail,
+            enclosure:   thumbnail ? { link: thumbnail } : null,
+        };
+    });
+
+    return { status: 'ok', items };
+}
+
 // 記事本文をURLから取得（リダイレクト対応、最大3回）
 function fetchArticleUrl(targetUrl, res, redirectCount = 0) {
     if (redirectCount > 3) {
@@ -156,39 +242,26 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    // RSS fetch proxy
+    // RSS fetch proxy（直接取得・XMLパース）
     if (req.method === 'GET' && req.url.startsWith('/api/rss?')) {
         const params = new URL('http://localhost' + req.url).searchParams;
         const rssUrl = params.get('url');
-        const count  = params.get('count') || '20';
+        const count  = parseInt(params.get('count') || '20');
         if (!rssUrl) {
             res.writeHead(400, { 'Content-Type': 'application/json', ...CORS_HEADERS });
-            res.end(JSON.stringify({ status: 'error', message: 'Missing url param' }));
+            res.end(JSON.stringify({ status: 'error', items: [] }));
             return;
         }
-        const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&count=${count}`;
-        const parsed = new URL(apiUrl);
-        const reqOpts = {
-            hostname: parsed.hostname,
-            path: parsed.pathname + parsed.search,
-            method: 'GET',
-            headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' },
-            timeout: 10000,
-        };
-        const apiReq = https.request(reqOpts, apiRes => {
-            let data = '';
-            apiRes.on('data', chunk => data += chunk);
-            apiRes.on('end', () => {
+        fetchRawUrl(rssUrl, (err, xml) => {
+            if (err) {
                 res.writeHead(200, { 'Content-Type': 'application/json', ...CORS_HEADERS });
-                res.end(data);
-            });
+                res.end(JSON.stringify({ status: 'error', items: [] }));
+                return;
+            }
+            const result = parseRSSXML(xml, count);
+            res.writeHead(200, { 'Content-Type': 'application/json', ...CORS_HEADERS });
+            res.end(JSON.stringify(result));
         });
-        apiReq.on('error', err => {
-            res.writeHead(502, { 'Content-Type': 'application/json', ...CORS_HEADERS });
-            res.end(JSON.stringify({ status: 'error', message: err.message }));
-        });
-        apiReq.on('timeout', () => { apiReq.destroy(); });
-        apiReq.end();
         return;
     }
 
