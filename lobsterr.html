@@ -181,25 +181,50 @@
         .li-title a { color: inherit; text-decoration: none; }
         .li-title a:hover { color: var(--accent); }
 
-        .li-excerpt {
+        /* 折りたたみ要約 */
+        .li-summary {
             font-size: 13px;
+            line-height: 1.75;
             color: var(--muted);
-            line-height: 1.7;
+        }
+        .li-summary-preview {
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
+        .li-summary-full { display: none; color: var(--text); }
 
-        .li-actions {
-            display: flex;
-            gap: 6px;
-            justify-content: flex-end;
+        .li-toggle {
+            font-size: 11px;
+            color: var(--accent);
+            background: none;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            font-family: 'DM Sans', sans-serif;
+            font-weight: 500;
+            letter-spacing: 0.04em;
             margin-top: 2px;
+            display: inline-block;
+        }
+        .li-toggle:hover { opacity: 0.75; }
+
+        .li-expanded-actions {
+            display: none;
+            gap: 6px;
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
         }
 
+        /* 展開時 */
+        .list-item.expanded .li-summary-preview { display: none; }
+        .list-item.expanded .li-summary-full    { display: block; }
+        .list-item.expanded .li-expanded-actions { display: flex; }
+
         .btn-sm {
-            padding: 6px 14px;
+            padding: 8px 16px;
             font-size: 11px;
             font-weight: 500;
             letter-spacing: 0.05em;
@@ -210,8 +235,6 @@
             transition: all 0.18s;
         }
         .btn-sm:disabled { opacity: 0.4; cursor: not-allowed; }
-        .btn-sum { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
-        .btn-sum:not(:disabled):hover { border-color: var(--text); }
         .btn-art { background: var(--accent); color: #fff; }
         .btn-art:not(:disabled):hover { background: #A5300F; }
         .btn-tr  { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
@@ -598,17 +621,12 @@
             /* List items */
             .list-item { padding: 16px 0; gap: 8px; }
             .li-title { font-size: 17px; }
-            .li-excerpt { font-size: 12px; -webkit-line-clamp: 2; }
+            .li-summary { font-size: 12px; }
             .li-date { font-size: 10px; }
             .source-tag { font-size: 8px; }
 
             /* Action buttons — bigger tap targets */
-            .li-actions { gap: 6px; }
-            .btn-sm {
-                padding: 9px 10px;
-                font-size: 11px;
-                flex: 1;
-            }
+            .btn-sm { padding: 10px 12px; font-size: 11px; flex: 1; }
 
             /* Slide panel — full screen */
             .panel {
@@ -959,19 +977,24 @@ async function scoreBatch(batch) {
     const prompt =
 `${LOBSTERR_PERSONA}
 
-Rate each article 1–5 for Lobsterr fit.
-5=perfect, 4=good, 3=borderline, 2=poor, 1=not at all
+For each article below:
+1. Score 1–5 for Lobsterr fit (5=perfect, 4=good, 3=borderline, 2=poor, 1=not at all)
+2. If score >= 3, write a 3–4 sentence Japanese summary (~150 chars). If score <= 2, use empty string.
 
 ${list}
 
-Reply ONLY with a JSON array of integers, e.g. [5,3,2,4,1,...]`;
+Reply ONLY with a JSON array, one object per article, in order:
+[{"score":5,"ja":"日本語要約"},{"score":2,"ja":""},...]`;
     try {
-        const res    = await callClaude(prompt, 'claude-haiku-4-5-20251001', 0.1, 200);
-        const match  = res.match(/\[[\d,\s]+\]/);
-        const scores = match ? JSON.parse(match[0]) : [];
-        batch.forEach((a, n) => { a.score = scores[n] ?? 3; });
+        const res   = await callClaude(prompt, 'claude-haiku-4-5-20251001', 0.3, 2500);
+        const match = res.match(/\[[\s\S]*\]/);
+        const items = match ? JSON.parse(match[0]) : [];
+        batch.forEach((a, n) => {
+            a.score = items[n]?.score ?? 3;
+            a.ja    = items[n]?.ja    ?? '';
+        });
     } catch {
-        batch.forEach(a => { a.score = 3; });
+        batch.forEach(a => { a.score = 3; a.ja = ''; });
     }
 }
 
@@ -1083,6 +1106,7 @@ function renderFeedList(reset = true) {
         const idx = displayedCount + relIdx;
         const li  = document.createElement('li');
         li.className = 'list-item';
+        li.id = `item-${idx}`;
 
         const badge = a.score >= 5
             ? `<span class="pick-badge">★ Pick</span>`
@@ -1099,9 +1123,12 @@ function renderFeedList(reset = true) {
             <div class="li-title">
                 <a href="${esc(a.link)}" target="_blank" rel="noopener noreferrer">${esc(a.title)}</a>
             </div>
-            ${a.description ? `<div class="li-excerpt">${esc(a.description)}</div>` : ''}
-            <div class="li-actions">
-                <button class="btn-sm btn-sum" id="sum-${idx}" onclick="doSummary(${idx})">要約</button>
+            <div class="li-summary">
+                <div class="li-summary-preview">${esc(a.ja || a.description)}</div>
+                <div class="li-summary-full">${esc(a.ja || a.description)}</div>
+            </div>
+            <button class="li-toggle" id="toggle-${idx}" onclick="toggleItem(${idx})">全文を見る ▼</button>
+            <div class="li-expanded-actions">
                 <button class="btn-sm btn-art" id="art-${idx}" onclick="doArticle(${idx})">記事</button>
                 <button class="btn-sm btn-tr"  id="tr-${idx}"  onclick="doTranslate(${idx})">和訳</button>
                 <button class="btn-sm btn-en"  id="en-${idx}"  onclick="doEnglishQuiz(${idx})">英語</button>
@@ -1128,6 +1155,14 @@ function renderFeedList(reset = true) {
 
 function loadMore() {
     renderFeedList(false);
+}
+
+function toggleItem(idx) {
+    const item = document.getElementById(`item-${idx}`);
+    const btn  = document.getElementById(`toggle-${idx}`);
+    if (!item) return;
+    const expanded = item.classList.toggle('expanded');
+    btn.textContent = expanded ? '閉じる ▲' : '全文を見る ▼';
 }
 
 function setupAutoLoad() {
