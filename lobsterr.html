@@ -968,47 +968,38 @@ function setCache(articles) {
 function clearCache() { sessionStorage.removeItem(CACHE_KEY); }
 
 // ───────────────────────────────────────────
-// AI FILTERING（並列実行）
+// AI FILTERING（スコアリングのみ・シンプルJSON）
 // ───────────────────────────────────────────
 async function scoreBatch(batch) {
     const list = batch.map((a, n) =>
-        `${n + 1}. [${a.source}] "${a.title}" — ${a.description.slice(0, 120)}`
+        `${n + 1}. [${a.source}] ${a.title} — ${a.description.slice(0, 100)}`
     ).join('\n');
     const prompt =
 `${LOBSTERR_PERSONA}
 
-For each article below:
-1. Score 1–5 for Lobsterr fit (5=perfect, 4=good, 3=borderline, 2=poor, 1=not at all)
-2. If score >= 3, write a 3–4 sentence Japanese summary (~150 chars). If score <= 2, use empty string.
+Rate each article 1-5 for Lobsterr fit.
+5=perfect fit, 4=good, 3=borderline, 2=poor, 1=not at all
 
 ${list}
 
-Reply ONLY with a JSON array, one object per article, in order:
-[{"score":5,"ja":"日本語要約"},{"score":2,"ja":""},...]`;
+Output ONLY a JSON array of numbers, same order: [5,3,1,4,...]`;
     try {
-        const res   = await callClaude(prompt, 'claude-haiku-4-5-20251001', 0.3, 2500);
-        const match = res.match(/\[[\s\S]*\]/);
-        const items = match ? JSON.parse(match[0]) : [];
-        batch.forEach((a, n) => {
-            a.score = items[n]?.score ?? 3;
-            a.ja    = items[n]?.ja    ?? '';
-        });
+        const res    = await callClaude(prompt, 'claude-haiku-4-5-20251001', 0.1, 150);
+        const match  = res.match(/\[\s*[\d,\s]+\s*\]/);
+        const scores = match ? JSON.parse(match[0]) : [];
+        batch.forEach((a, n) => { a.score = typeof scores[n] === 'number' ? scores[n] : 3; });
     } catch {
-        batch.forEach(a => { a.score = 3; a.ja = ''; });
+        batch.forEach(a => { a.score = 3; });
     }
 }
 
 async function filterWithAI(articles) {
     if (!currentApiKey) { articles.forEach(a => a.score = 3); return articles; }
 
-    const BATCH      = 25;   // 1リクエストあたりの記事数
-    const CONCURRENT = 5;    // 同時実行数
-
-    // バッチ分割
+    const BATCH = 25, CONCURRENT = 5;
     const batches = [];
     for (let i = 0; i < articles.length; i += BATCH) batches.push(articles.slice(i, i + BATCH));
 
-    // 並列実行（CONCURRENT本ずつ）
     let done = 0;
     for (let i = 0; i < batches.length; i += CONCURRENT) {
         await Promise.all(batches.slice(i, i + CONCURRENT).map(b => scoreBatch(b)));
@@ -1017,6 +1008,59 @@ async function filterWithAI(articles) {
     }
 
     return articles.filter(a => a.score >= 3).sort((a, b) => b.score - a.score);
+}
+
+// ───────────────────────────────────────────
+// 日本語要約生成（フィルタリング後・DOM直接更新）
+// ───────────────────────────────────────────
+async function generateJaSummaries(articles) {
+    if (!currentApiKey) return;
+    const BATCH = 8, CONCURRENT = 4;
+    const batches = [];
+    for (let i = 0; i < articles.length; i += BATCH) batches.push(articles.slice(i, i + BATCH));
+
+    for (let i = 0; i < batches.length; i += CONCURRENT) {
+        await Promise.all(batches.slice(i, i + CONCURRENT).map(async batch => {
+            const list = batch.map((a, n) =>
+                `[${n + 1}]\nTitle: ${a.title}\nContent: ${a.description.slice(0, 180)}`
+            ).join('\n\n');
+
+            const prompt =
+`以下の英語記事それぞれについて、3〜4文の日本語要約（120〜160字）を書いてください。
+Lobsterrの読者（カルチャー・ビジネストレンドに関心のある25〜45歳の日本人）向けに、
+知的で読みやすい文体で。
+
+${list}
+
+以下のJSON配列のみ出力（説明不要）:
+["要約1","要約2","要約3",...]`;
+
+            try {
+                const res  = await callClaude(prompt, 'claude-haiku-4-5-20251001', 0.4, 1500);
+                // JSON配列を抽出（ダブルクオート含む形式）
+                const match = res.match(/\[[\s\S]*\]/);
+                if (!match) return;
+                const summaries = JSON.parse(match[0]);
+                batch.forEach((a, n) => {
+                    if (summaries[n]) {
+                        a.ja = summaries[n];
+                        updateItemSummary(a);
+                    }
+                });
+            } catch { /* 失敗しても続行 */ }
+        }));
+    }
+}
+
+// DOM上の要約テキストをIDで直接更新
+function updateItemSummary(article) {
+    const idx = allArticles.indexOf(article);
+    if (idx < 0) return;
+    const preview = document.querySelector(`#item-${idx} .li-summary-preview`);
+    const full    = document.querySelector(`#item-${idx} .li-summary-full`);
+    const text    = article.ja || article.description;
+    if (preview) preview.textContent = text;
+    if (full)    full.textContent    = text;
 }
 
 // ───────────────────────────────────────────
@@ -1068,10 +1112,14 @@ async function loadFeed(forceRefresh = true) {
         renderFeedList();
         setStatus(`${raw.length} 件取得 — AIフィルタリング中…`);
 
-        // ② バックグラウンドでAIフィルタリング → 完了したら再描画
+        // ② AIフィルタリング → 再描画
         allArticles = await filterWithAI(raw);
         displayedCount = 0;
         renderFeedList();
+        setStatus(`${allArticles.length} 件表示中 — 日本語要約を生成中…`);
+
+        // ③ 日本語要約をバックグラウンド生成（DOM直接更新）
+        await generateJaSummaries(allArticles);
         setStatus(`${allArticles.length} 件 / ${raw.length} 件中`);
         setCache(allArticles);
 
