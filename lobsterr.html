@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LOBSTERR</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg:        #F2EDE4;
+            --card-bg:   #FDFAF5;
+            --text:      #1A1816;
+            --muted:     #7A746E;
+            --accent:    #C8381A;
+            --border:    #E0D8CE;
+            --tag-bg:    #1A1816;
+            --tag-text:  #F2EDE4;
+            --pick-bg:   #FFF0ED;
+            --pick-text: #C8381A;
+            --pick-border:#F5C4B8;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            min-height: 100vh;
+        }
+
+        /* ══ Header ══ */
+        header {
+            border-bottom: 1px solid var(--border);
+            padding: 16px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            background: var(--bg);
+            z-index: 200;
+            gap: 16px;
+        }
+
+        .logo {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+        .logo em { color: var(--accent); font-style: normal; }
+
+        .header-nav { display: flex; align-items: center; gap: 6px; }
+
+        .btn {
+            padding: 7px 16px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.07em;
+            cursor: pointer;
+            transition: all 0.18s;
+            border: none;
+            font-family: 'DM Sans', sans-serif;
+            white-space: nowrap;
+        }
+        .btn-primary { background: var(--text); color: var(--bg); }
+        .btn-primary:hover:not(:disabled) { background: var(--accent); }
+        .btn-primary:disabled { background: #bbb; cursor: not-allowed; }
+        .btn-ghost  { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+        .btn-ghost:hover  { border-color: var(--text); color: var(--text); }
+        .btn-active { background: var(--text); color: var(--bg); border: 1px solid var(--text); }
+
+        /* ══ Subheader ══ */
+        .subheader {
+            padding: 10px 40px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .tagline { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+        #statusBar { font-size: 11px; color: var(--muted); }
+
+        /* ══ Views ══ */
+        #feedView  { display: block; }
+        #adminView { display: none; }
+
+        /* ══ Feed main ══ */
+        #feedMain {
+            max-width: 840px;
+            margin: 0 auto;
+            padding: 0 40px 80px;
+        }
+
+        /* ══ States ══ */
+        .state-box {
+            text-align: center;
+            padding: 100px 20px;
+        }
+        .state-box h3 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 28px;
+            font-weight: 400;
+            margin-bottom: 12px;
+        }
+        .state-box p { font-size: 13px; color: var(--muted); line-height: 1.8; }
+        .spinner {
+            width: 26px; height: 26px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin: 0 auto 18px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ══ List feed ══ */
+        .feed-list { list-style: none; }
+
+        .list-item {
+            border-bottom: 1px solid var(--border);
+            padding: 20px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+        .list-item:first-child { border-top: 1px solid var(--border); }
+
+        .li-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .source-tag {
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            background: var(--tag-bg);
+            color: var(--tag-text);
+            padding: 3px 8px;
+            border-radius: 2px;
+        }
+
+        .pick-badge {
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            background: var(--pick-bg);
+            color: var(--pick-text);
+            border: 1px solid var(--pick-border);
+            padding: 2px 7px;
+            border-radius: 2px;
+        }
+
+        .rel-badge {
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            background: #EFF4FF;
+            color: #1E3A8A;
+            border: 1px solid #BFDBFE;
+            padding: 2px 7px;
+            border-radius: 2px;
+        }
+
+        .li-date { font-size: 11px; color: var(--muted); margin-left: auto; }
+
+        .li-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 19px;
+            font-weight: 600;
+            line-height: 1.3;
+        }
+        .li-title a { color: inherit; text-decoration: none; }
+        .li-title a:hover { color: var(--accent); }
+
+        .li-excerpt {
+            font-size: 13px;
+            color: var(--muted);
+            line-height: 1.7;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .li-actions {
+            display: flex;
+            gap: 6px;
+            justify-content: flex-end;
+            margin-top: 2px;
+        }
+
+        .btn-sm {
+            padding: 6px 14px;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+            border-radius: 3px;
+            cursor: pointer;
+            border: none;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.18s;
+        }
+        .btn-sm:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-sum { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+        .btn-sum:not(:disabled):hover { border-color: var(--text); }
+        .btn-art { background: var(--accent); color: #fff; }
+        .btn-art:not(:disabled):hover { background: #A5300F; }
+        .btn-tr  { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+        .btn-tr:not(:disabled):hover  { border-color: var(--text); }
+        .btn-en  { background: #1A3A8A; color: #fff; }
+        .btn-en:not(:disabled):hover  { background: #152F70; }
+
+        /* ══ Quiz UI ══ */
+        .quiz-wrap { display: flex; flex-direction: column; gap: 0; }
+        .quiz-progress {
+            font-size: 11px;
+            color: var(--muted);
+            letter-spacing: 0.05em;
+            margin-bottom: 24px;
+        }
+        .quiz-card {
+            background: var(--bg);
+            border-radius: 4px;
+            padding: 32px 28px;
+            min-height: 160px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 16px;
+        }
+        .quiz-jp {
+            font-size: 16px;
+            line-height: 1.8;
+            font-weight: 500;
+        }
+        .quiz-en {
+            font-size: 15px;
+            color: #1A3A8A;
+            line-height: 1.7;
+            font-style: italic;
+            display: none;
+        }
+        .quiz-en.show { display: block; }
+        .quiz-idiom {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+            display: none;
+        }
+        .quiz-idiom.show { display: block; }
+        .quiz-btn-row { display: flex; gap: 8px; }
+        .quiz-btn {
+            flex: 1;
+            padding: 11px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.18s;
+            background: var(--card-bg);
+            color: var(--text);
+        }
+        .quiz-btn:hover { border-color: var(--text); }
+        .quiz-btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+        .quiz-btn.primary:hover { background: #1A3A8A; border-color: #1A3A8A; }
+        .quiz-nav { display: flex; gap: 8px; margin-top: 4px; }
+
+        /* ══ Load more ══ */
+        #loadMoreArea {
+            text-align: center;
+            padding: 40px 0 20px;
+        }
+
+        /* ══ Slide panel ══ */
+        .panel-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(26,24,22,0.65);
+            z-index: 500;
+            display: none;
+            justify-content: flex-end;
+        }
+        .panel-overlay.open { display: flex; }
+
+        .panel {
+            width: 600px;
+            max-width: 100%;
+            height: 100vh;
+            background: var(--card-bg);
+            overflow-y: auto;
+            padding: 48px 44px 64px;
+            animation: slideIn 0.26s ease;
+            position: relative;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(40px); opacity: 0; }
+            to   { transform: translateX(0);    opacity: 1; }
+        }
+
+        .panel-close {
+            position: sticky;
+            top: 0;
+            float: right;
+            background: none;
+            border: none;
+            font-size: 22px;
+            line-height: 1;
+            color: var(--muted);
+            cursor: pointer;
+            padding: 2px 4px;
+            margin-bottom: -22px;
+        }
+        .panel-close:hover { color: var(--text); }
+
+        .panel-type {
+            clear: both;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 12px;
+        }
+        .panel-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 24px;
+            font-weight: 600;
+            line-height: 1.35;
+            margin-bottom: 8px;
+        }
+        .panel-source {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 32px;
+        }
+        .panel-source a { color: var(--accent); text-decoration: none; }
+        .panel-source a:hover { text-decoration: underline; }
+        .panel-body { font-size: 15px; line-height: 1.95; }
+        .panel-body p { margin-bottom: 16px; }
+        .panel-body h3 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 20px;
+            font-weight: 600;
+            margin: 28px 0 12px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+        }
+        .panel-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 260px;
+            gap: 16px;
+        }
+        .panel-copy {
+            margin-top: 36px;
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.06em;
+            cursor: pointer;
+            color: var(--muted);
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.18s;
+        }
+        .panel-copy:hover { border-color: var(--text); color: var(--text); }
+
+        /* ══ Settings modal ══ */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(26,24,22,0.65);
+            z-index: 600;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: var(--card-bg);
+            width: 480px;
+            max-width: calc(100% - 40px);
+            padding: 40px;
+            border-radius: 4px;
+            animation: fadeUp 0.22s ease;
+        }
+        @keyframes fadeUp {
+            from { transform: translateY(10px); opacity: 0; }
+            to   { transform: translateY(0);    opacity: 1; }
+        }
+        .modal-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .modal-desc { font-size: 13px; color: var(--muted); line-height: 1.7; margin-bottom: 26px; }
+        .form-label {
+            display: block;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 7px;
+        }
+        .form-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            font-size: 13px;
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin-bottom: 18px;
+            transition: border-color 0.18s;
+        }
+        .form-input:focus { outline: none; border-color: var(--text); }
+        .form-input::placeholder { color: #bbb; }
+        .form-hint { font-size: 11px; color: var(--muted); margin-top: -12px; margin-bottom: 18px; line-height: 1.6; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 8px; }
+
+        /* ══ Admin ══ */
+        #adminMain {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 40px 80px;
+        }
+        .admin-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .admin-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 26px;
+            font-weight: 600;
+        }
+        .admin-subtitle { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+        .add-source-form {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 24px;
+            margin-bottom: 32px;
+            display: grid;
+            grid-template-columns: 1fr 2fr auto;
+            gap: 10px;
+            align-items: end;
+        }
+        .add-source-form .form-input { margin-bottom: 0; }
+        .form-group { display: flex; flex-direction: column; }
+
+        .sources-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--card-bg);
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .sources-table th {
+            text-align: left;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--muted);
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg);
+        }
+        .sources-table td {
+            padding: 12px 16px;
+            font-size: 13px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+        .sources-table tr:last-child td { border-bottom: none; }
+        .sources-table tr:hover td { background: var(--bg); }
+        .sources-table .source-name { font-weight: 500; }
+        .sources-table .source-url {
+            color: var(--muted);
+            font-size: 12px;
+            max-width: 320px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Toggle switch */
+        .toggle {
+            position: relative;
+            display: inline-block;
+            width: 36px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: var(--border);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: '';
+            height: 14px; width: 14px;
+            left: 3px; bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+        .toggle input:checked + .toggle-slider { background: var(--accent); }
+        .toggle input:checked + .toggle-slider:before { transform: translateX(16px); }
+
+        .btn-del {
+            font-size: 11px;
+            padding: 5px 10px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            color: var(--muted);
+            cursor: pointer;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.18s;
+        }
+        .btn-del:hover { border-color: #e53e3e; color: #e53e3e; }
+
+        .admin-stats {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 16px;
+        }
+
+        /* ══ Toast ══ */
+        .toast {
+            position: fixed;
+            bottom: 28px;
+            left: 50%;
+            transform: translateX(-50%) translateY(8px);
+            background: var(--text);
+            color: var(--bg);
+            padding: 10px 22px;
+            border-radius: 4px;
+            font-size: 13px;
+            z-index: 999;
+            opacity: 0;
+            transition: all 0.22s;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        @media (max-width: 640px) {
+            header, .subheader { padding-left: 20px; padding-right: 20px; }
+            #feedMain, #adminMain { padding-left: 20px; padding-right: 20px; }
+            .panel { padding: 36px 24px 48px; }
+            .add-source-form { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ════════════ HEADER ════════════ -->
+<header>
+    <div class="logo">LOBST<em>E</em>RR</div>
+    <div class="header-nav">
+        <button class="btn btn-ghost" id="navFeed"  onclick="showView('feed')">フィード</button>
+        <button class="btn btn-ghost" id="navAdmin" onclick="showView('admin')">管理</button>
+        <button class="btn btn-ghost" onclick="openSettings()">設定</button>
+        <button class="btn btn-primary" id="refreshBtn" onclick="loadFeed()">フィードを取得</button>
+    </div>
+</header>
+
+<div class="subheader">
+    <span class="tagline">Future Culture &amp; Business Intelligence</span>
+    <span id="statusBar">—</span>
+</div>
+
+<!-- ════════════ FEED VIEW ════════════ -->
+<div id="feedView">
+    <div id="feedMain">
+        <div id="feedContainer">
+            <div class="state-box">
+                <h3>未来のシグナルを探しています</h3>
+                <p>「フィードを取得」を押してキュレーションを開始してください。<br>
+                初回は「設定」からAnthropic APIキーを入力してください。</p>
+            </div>
+        </div>
+        <div id="loadMoreArea"></div>
+    </div>
+</div>
+
+<!-- ════════════ ADMIN VIEW ════════════ -->
+<div id="adminView">
+    <div id="adminMain">
+        <div class="admin-header">
+            <div>
+                <h2 class="admin-title">情報ソース管理</h2>
+                <p class="admin-subtitle">有効なソースのみフィード取得対象になります</p>
+            </div>
+            <button class="btn btn-ghost" onclick="exportSources()">エクスポート</button>
+        </div>
+
+        <!-- Add form -->
+        <div class="add-source-form">
+            <div class="form-group">
+                <label class="form-label">名前</label>
+                <input class="form-input" id="newName" placeholder="メディア名" type="text">
+            </div>
+            <div class="form-group">
+                <label class="form-label">RSS URL</label>
+                <input class="form-input" id="newUrl" placeholder="https://example.com/feed" type="url">
+            </div>
+            <button class="btn btn-primary" onclick="addSource()" style="height:40px;margin-top:auto">追加</button>
+        </div>
+
+        <p class="admin-stats" id="adminStats"></p>
+
+        <table class="sources-table" id="sourcesTable">
+            <thead>
+                <tr>
+                    <th style="width:40px">有効</th>
+                    <th>名前</th>
+                    <th>RSS URL</th>
+                    <th style="width:60px"></th>
+                </tr>
+            </thead>
+            <tbody id="sourcesBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ════════════ SLIDE PANEL ════════════ -->
+<div class="panel-overlay" id="panelOverlay" onclick="handlePanelOverlay(event)">
+    <div class="panel">
+        <button class="panel-close" onclick="closePanel()">×</button>
+        <div id="panelContent"></div>
+    </div>
+</div>
+
+<!-- ════════════ SETTINGS MODAL ════════════ -->
+<div class="modal-overlay" id="settingsOverlay" onclick="handleSettingsOverlay(event)">
+    <div class="modal">
+        <h2 class="modal-title">設定</h2>
+        <p class="modal-desc">Anthropic APIキーを入力してください。キーはブラウザのLocalStorageにのみ保存されます。</p>
+        <label class="form-label">Anthropic API Key</label>
+        <input type="password" class="form-input" id="apiKeyInput" placeholder="sk-ant-...">
+        <label class="form-label">1ソースあたりの取得記事数</label>
+        <input type="number" class="form-input" id="countInput" min="5" max="50" value="20">
+        <p class="form-hint">ソース数 × 記事数が多いほど取得・フィルタリングに時間がかかります。</p>
+        <div class="modal-actions">
+            <button class="btn btn-primary" onclick="saveSettings()" style="flex:1">保存</button>
+            <button class="btn btn-ghost"   onclick="closeSettings()" style="flex:1">キャンセル</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════ -->
+<script>
+// ───────────────────────────────────────────
+// DEFAULT SOURCES
+// ───────────────────────────────────────────
+const DEFAULT_SOURCES = [
+    // Tech & Culture
+    { id: 'wired',         name: 'WIRED',               url: 'https://www.wired.com/feed/rss',                            enabled: true },
+    { id: 'verge',         name: 'The Verge',            url: 'https://www.theverge.com/rss/index.xml',                    enabled: true },
+    { id: 'mittr',         name: 'MIT Tech Review',      url: 'https://www.technologyreview.com/feed/',                    enabled: true },
+    { id: 'fastco',        name: 'Fast Company',         url: 'https://www.fastcompany.com/latest/rss',                    enabled: true },
+    { id: 'restworld',     name: 'Rest of World',        url: 'https://restofworld.org/feed/',                             enabled: true },
+    { id: 'every',         name: 'Every',                url: 'https://every.to/feed',                                     enabled: true },
+    { id: 'axios',         name: 'Axios',                url: 'https://api.axios.com/feed/',                               enabled: true },
+    // Design & Lifestyle
+    { id: 'dezeen',        name: 'Dezeen',               url: 'https://www.dezeen.com/feed',                               enabled: true },
+    { id: 'monocle',       name: 'Monocle',              url: 'https://monocle.com/feed/',                                 enabled: true },
+    { id: 'hypebeast',     name: 'Hypebeast',            url: 'https://hypebeast.com/feed',                                enabled: true },
+    { id: 'thecut',        name: 'The Cut',              url: 'https://www.thecut.com/rss/index.xml',                      enabled: true },
+    { id: 'gq',            name: 'GQ',                   url: 'https://www.gq.com/feed/rss',                               enabled: true },
+    { id: 'dazed',         name: 'Dazed',                url: 'https://www.dazeddigital.com/rss',                          enabled: true },
+    { id: 'culturist',     name: 'The Culturist',        url: 'https://www.theculturist.io/feed',                          enabled: true },
+    { id: 'welcomejpeg',   name: 'Welcome JPEG',         url: 'https://www.welcomejpeg.com/feed',                          enabled: true },
+    // Business & Finance
+    { id: 'bloomberg',     name: 'Bloomberg',            url: 'https://feeds.bloomberg.com/markets/news.rss',              enabled: true },
+    { id: 'ft',            name: 'Financial Times',      url: 'https://www.ft.com/rss/home/uk',                            enabled: true },
+    { id: 'wsj',           name: 'WSJ',                  url: 'https://feeds.a.dj.com/rss/RSSWorldNews.xml',              enabled: true },
+    { id: 'economist',     name: 'The Economist',        url: 'https://www.economist.com/sections/culture/rss.xml',        enabled: true },
+    { id: 'qz',            name: 'Quartz',               url: 'https://qz.com/feed',                                       enabled: true },
+    { id: 'a16z',          name: 'a16z',                 url: 'https://a16z.com/feed/',                                    enabled: true },
+    { id: 'forerunner',    name: 'Forerunner Ventures',  url: 'https://forerunnerventures.substack.com/feed',              enabled: true },
+    // Journalism & Ideas
+    { id: 'atlantic',      name: 'The Atlantic',         url: 'https://www.theatlantic.com/feed/all/',                     enabled: true },
+    { id: 'newyorker',     name: 'The New Yorker',       url: 'https://www.newyorker.com/feed/everything',                 enabled: true },
+    { id: 'nyt',           name: 'New York Times',       url: 'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml', enabled: true },
+    { id: 'time',          name: 'TIME',                 url: 'https://time.com/feed/',                                    enabled: true },
+    { id: 'vice',          name: 'VICE',                 url: 'https://www.vice.com/en/rss',                               enabled: true },
+    // Newsletters & Substacks
+    { id: 'exponential',   name: 'Exponential View',     url: 'https://www.exponentialview.co/feed',                       enabled: true },
+    { id: 'profgalloway',  name: 'Prof Galloway',        url: 'https://www.profgalloway.com/feed',                         enabled: true },
+    { id: 'profgmedia',    name: 'Prof G Media',         url: 'https://www.profgmedia.com/feed',                           enabled: true },
+    { id: 'noahpinion',    name: 'Noahpinion',           url: 'https://noahpinion.substack.com/feed',                      enabled: true },
+    { id: 'honestbroker',  name: 'The Honest Broker',    url: 'https://www.honest-broker.com/feed',                        enabled: true },
+    { id: 'slowboring',    name: 'Slow Boring',          url: 'https://www.slowboring.com/feed',                           enabled: true },
+    { id: 'managinged',    name: 'Managing Editor',      url: 'https://managingeditor.substack.com/feed',                  enabled: true },
+    { id: 'afterschool',   name: 'After School',         url: 'https://afterschool.substack.com/feed',                     enabled: true },
+    { id: 'evie',          name: 'Evie Magazine',        url: 'https://eviemagazine.substack.com/feed',                    enabled: true },
+    { id: 'peoplevsalgo',  name: 'People vs Algorithms', url: 'https://www.peoplevsalgorithms.com/feed',                   enabled: true },
+    { id: 'feedme',        name: 'Feed Me',              url: 'https://www.readfeedme.com/feed',                           enabled: true },
+    { id: 'onething',      name: 'One Thing',            url: 'https://onethingnewsletter.substack.com/feed',              enabled: true },
+];
+
+// ───────────────────────────────────────────
+// LOBSTERR PERSONA
+// ───────────────────────────────────────────
+const LOBSTERR_PERSONA = `
+You are a curator for Lobsterr, a Japanese newsletter covering signals of future culture and business change.
+Lobsterr's taste sits between WIRED and Monocle — sophisticated, design-curious, globally-minded, forward-looking.
+
+Score 4-5 (fits Lobsterr):
+- Emerging cultural behaviors, micro-trends, subcultures
+- Technology reshaping daily life, work, relationships, or cities
+- Design, architecture, and material culture shifts
+- New business models and economic patterns
+- Wellness and health as cultural signals
+- Creative economy, creator/maker models
+- Sustainability and climate as cultural transformation
+- Generational value shifts in consumption and identity
+- Global perspectives beyond US/EU
+
+Score 1-2 (does not fit):
+- Day-to-day political news
+- Sports, celebrity gossip
+- Generic product launches / earnings reports
+- Crime or disaster news
+- Listicle tips-and-tricks
+`.trim();
+
+// ───────────────────────────────────────────
+// STATE
+// ───────────────────────────────────────────
+let allArticles      = [];   // all filtered articles
+let displayedCount   = 0;    // how many are rendered
+const DISPLAY_BATCH  = 40;   // render this many at a time
+
+let currentApiKey = localStorage.getItem('lobsterr_api_key') || '';
+let articleCount  = parseInt(localStorage.getItem('lobsterr_count') || '20');
+let currentView   = 'feed';
+
+// ───────────────────────────────────────────
+// SOURCE MANAGEMENT
+// ───────────────────────────────────────────
+function getSources() {
+    const saved = localStorage.getItem('lobsterr_sources_v2');
+    if (saved) return JSON.parse(saved);
+    // First run: save defaults
+    saveSources(DEFAULT_SOURCES);
+    return DEFAULT_SOURCES;
+}
+
+function saveSources(sources) {
+    localStorage.setItem('lobsterr_sources_v2', JSON.stringify(sources));
+}
+
+function getEnabledSources() {
+    return getSources().filter(s => s.enabled);
+}
+
+function toggleSource(id) {
+    const sources = getSources();
+    const src = sources.find(s => s.id === id);
+    if (src) src.enabled = !src.enabled;
+    saveSources(sources);
+    renderAdmin();
+}
+
+function deleteSource(id) {
+    if (!confirm('このソースを削除しますか？')) return;
+    saveSources(getSources().filter(s => s.id !== id));
+    renderAdmin();
+    showToast('削除しました');
+}
+
+function addSource() {
+    const name = document.getElementById('newName').value.trim();
+    const url  = document.getElementById('newUrl').value.trim();
+    if (!name || !url) { showToast('名前とURLを入力してください'); return; }
+    if (!/^https?:\/\//i.test(url)) { showToast('URLはhttpsで始めてください'); return; }
+    const sources = getSources();
+    const id = 'custom_' + Date.now();
+    sources.push({ id, name, url, enabled: true });
+    saveSources(sources);
+    document.getElementById('newName').value = '';
+    document.getElementById('newUrl').value  = '';
+    renderAdmin();
+    showToast(`「${name}」を追加しました`);
+}
+
+function exportSources() {
+    const data = JSON.stringify(getSources(), null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'lobsterr-sources.json';
+    a.click();
+}
+
+// ───────────────────────────────────────────
+// RSS FETCHING
+// ───────────────────────────────────────────
+async function fetchRSS(source) {
+    const url = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(source.url)}&count=${articleCount}`;
+    try {
+        const res  = await fetch(url);
+        const data = await res.json();
+        if (data.status !== 'ok' || !data.items?.length) return [];
+        return data.items.map(item => ({
+            id:          item.guid || item.link,
+            title:       (item.title || '').trim(),
+            description: stripHtml(item.description || item.content || '').slice(0, 500),
+            link:        item.link || '',
+            image:       item.enclosure?.link || item.thumbnail || extractImg(item.content || item.description || ''),
+            date:        fmtDate(item.pubDate),
+            source:      source.name,
+            score:       null,
+        }));
+    } catch { return []; }
+}
+
+function stripHtml(h) {
+    return h.replace(/<[^>]*>/g,' ').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&')
+            .replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"')
+            .replace(/&#39;/g,"'").replace(/\s{2,}/g,' ').trim();
+}
+
+function extractImg(content) {
+    const m = content.match(/<img[^>]+src=["']([^"']+)["']/i);
+    return m ? m[1] : null;
+}
+
+function fmtDate(s) {
+    if (!s) return '';
+    try { return new Date(s).toLocaleDateString('ja-JP', { year:'numeric', month:'short', day:'numeric' }); }
+    catch { return ''; }
+}
+
+// ───────────────────────────────────────────
+// AI FILTERING
+// ───────────────────────────────────────────
+async function filterWithAI(articles) {
+    if (!currentApiKey) return articles;
+    const scored = [];
+    const BATCH  = 20;
+    let processed = 0;
+
+    for (let i = 0; i < articles.length; i += BATCH) {
+        const batch = articles.slice(i, i + BATCH);
+        const list  = batch.map((a, n) =>
+            `${n + 1}. [${a.source}] "${a.title}" — ${a.description.slice(0, 140)}`
+        ).join('\n');
+
+        const prompt =
+`${LOBSTERR_PERSONA}
+
+Rate each article 1–5 for Lobsterr fit.
+5=perfect, 4=good, 3=borderline, 2=poor, 1=not at all
+
+${list}
+
+Reply ONLY with a JSON array of integers in order, e.g. [5,3,2,4,1,...]`;
+
+        try {
+            const res    = await callClaude(prompt, 'claude-haiku-4-5-20251001', 0.1, 300);
+            const match  = res.match(/\[[\d,\s]+\]/);
+            const scores = match ? JSON.parse(match[0]) : [];
+            batch.forEach((a, n) => {
+                a.score = scores[n] ?? 3;
+                if (a.score >= 3) scored.push(a);
+            });
+        } catch {
+            batch.forEach(a => { a.score = 3; scored.push(a); });
+        }
+
+        processed += batch.length;
+        setStatus(`フィルタリング中… ${processed} / ${articles.length} 件`);
+    }
+
+    return scored.sort((a, b) => b.score - a.score);
+}
+
+// ───────────────────────────────────────────
+// MAIN LOADER
+// ───────────────────────────────────────────
+async function loadFeed() {
+    if (!currentApiKey) { openSettings(); showToast('まずAPIキーを設定してください'); return; }
+
+    const btn = document.getElementById('refreshBtn');
+    btn.disabled    = true;
+    btn.textContent = '取得中…';
+
+    allArticles    = [];
+    displayedCount = 0;
+    document.getElementById('loadMoreArea').innerHTML = '';
+
+    const enabled = getEnabledSources();
+    if (!enabled.length) { showFeedState('ソースが有効になっていません', '「管理」タブでソースを有効にしてください。'); return; }
+
+    showFeedLoading(`${enabled.length} ソースからフィードを取得中…`);
+    setStatus('取得中…');
+
+    try {
+        // Fetch in parallel batches (avoid overwhelming rss2json)
+        const PARALLEL = 6;
+        let raw = [];
+        for (let i = 0; i < enabled.length; i += PARALLEL) {
+            const batch = enabled.slice(i, i + PARALLEL);
+            const results = await Promise.all(batch.map(fetchRSS));
+            raw = raw.concat(results.flat());
+            setStatus(`取得中… ${Math.min(i + PARALLEL, enabled.length)} / ${enabled.length} ソース完了`);
+        }
+
+        if (!raw.length) {
+            showFeedState('記事を取得できませんでした', 'ネットワーク接続やRSS URLを確認してください。');
+            return;
+        }
+
+        // Deduplicate by URL
+        const seen = new Set();
+        raw = raw.filter(a => { if (seen.has(a.link)) return false; seen.add(a.link); return true; });
+
+        setStatus(`${raw.length} 件をフィルタリング中…`);
+        showFeedLoading(`${raw.length} 件の記事をLobsterrフィルタリング中…`);
+
+        allArticles = await filterWithAI(raw);
+
+        setStatus(`${allArticles.length} 件 / ${raw.length} 件中`);
+        renderFeedList();
+
+    } catch (e) {
+        showFeedState('エラーが発生しました', e.message);
+    } finally {
+        btn.disabled    = false;
+        btn.textContent = 'フィードを更新';
+    }
+}
+
+// ───────────────────────────────────────────
+// RENDER (list format)
+// ───────────────────────────────────────────
+function renderFeedList(reset = true) {
+    if (!allArticles.length) {
+        showFeedState('記事が見つかりませんでした', 'フィルタリング後に表示できる記事がありませんでした。');
+        return;
+    }
+
+    if (reset) {
+        displayedCount = 0;
+        document.getElementById('feedContainer').innerHTML = '';
+        document.getElementById('feedContainer').appendChild(
+            Object.assign(document.createElement('ul'), { className: 'feed-list', id: 'feedList' })
+        );
+    }
+
+    const list  = document.getElementById('feedList');
+    const slice = allArticles.slice(displayedCount, displayedCount + DISPLAY_BATCH);
+
+    slice.forEach((a, relIdx) => {
+        const idx = displayedCount + relIdx;
+        const li  = document.createElement('li');
+        li.className = 'list-item';
+
+        const badge = a.score >= 5
+            ? `<span class="pick-badge">★ Pick</span>`
+            : a.score >= 4
+                ? `<span class="rel-badge">✓ Relevant</span>`
+                : '';
+
+        li.innerHTML = `
+            <div class="li-meta">
+                <span class="source-tag">${esc(a.source)}</span>
+                ${badge}
+                <span class="li-date">${esc(a.date)}</span>
+            </div>
+            <div class="li-title">
+                <a href="${esc(a.link)}" target="_blank" rel="noopener noreferrer">${esc(a.title)}</a>
+            </div>
+            ${a.description ? `<div class="li-excerpt">${esc(a.description)}</div>` : ''}
+            <div class="li-actions">
+                <button class="btn-sm btn-sum" id="sum-${idx}" onclick="doSummary(${idx})">要約</button>
+                <button class="btn-sm btn-art" id="art-${idx}" onclick="doArticle(${idx})">記事</button>
+                <button class="btn-sm btn-tr"  id="tr-${idx}"  onclick="doTranslate(${idx})">和訳</button>
+                <button class="btn-sm btn-en"  id="en-${idx}"  onclick="doEnglishQuiz(${idx})">英語</button>
+            </div>
+        `;
+        list.appendChild(li);
+    });
+
+    displayedCount += slice.length;
+
+    // Update load more area
+    const lma = document.getElementById('loadMoreArea');
+    if (displayedCount < allArticles.length) {
+        lma.innerHTML = `
+            <button class="btn btn-ghost" onclick="loadMore()" style="padding:12px 28px;font-size:12px">
+                もっと見る（残り ${allArticles.length - displayedCount} 件）
+            </button>`;
+        // IntersectionObserver for auto-load
+        setupAutoLoad();
+    } else {
+        lma.innerHTML = `<p style="font-size:12px;color:var(--muted);padding:20px 0">全 ${allArticles.length} 件を表示しました</p>`;
+    }
+}
+
+function loadMore() {
+    renderFeedList(false);
+}
+
+function setupAutoLoad() {
+    const sentinel = document.getElementById('loadMoreArea');
+    const observer = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting && displayedCount < allArticles.length) {
+            observer.disconnect();
+            loadMore();
+        }
+    }, { rootMargin: '200px' });
+    observer.observe(sentinel);
+}
+
+// ───────────────────────────────────────────
+// SUMMARY
+// ───────────────────────────────────────────
+async function doSummary(idx) {
+    const a   = allArticles[idx];
+    const btn = document.getElementById(`sum-${idx}`);
+    setCardBusy(btn, '…');
+    openPanelLoading('要約を生成しています…');
+
+    const prompt =
+`以下の英語記事の要点を日本語で200〜300文字に要約してください。
+Lobsterrの読者（カルチャー・ビジネストレンドに関心のある25〜45歳の日本人）向けに、箇条書きではなく流れるような文章で。
+
+タイトル: ${a.title}
+概要: ${a.description}`;
+
+    try {
+        const text = await callClaude(prompt, 'claude-haiku-4-5-20251001', 0.5, 700);
+        document.getElementById('panelContent').innerHTML = `
+            <div class="panel-type">要約</div>
+            <h2 class="panel-title">${esc(a.title)}</h2>
+            <p class="panel-source">${esc(a.source)} &nbsp;—&nbsp;
+                <a href="${esc(a.link)}" target="_blank" rel="noopener noreferrer">原文を読む →</a>
+            </p>
+            <div class="panel-body">${renderText(text)}</div>
+        `;
+    } catch (e) { showPanelError(e.message); }
+    finally { resetBtn(btn, '要約'); }
+}
+
+// ───────────────────────────────────────────
+// ARTICLE GENERATION
+// ───────────────────────────────────────────
+async function doArticle(idx) {
+    const a   = allArticles[idx];
+    const btn = document.getElementById(`art-${idx}`);
+    setCardBusy(btn, '…');
+    openPanelLoading('Lobsterr記事を生成しています…');
+
+    const prompt =
+`あなたはLobsterrというメディアのライターです。
+LobsterrはWIREDとMonocleの中間のような、知的でカルチャー感のある日本語ニュースレターです。
+
+以下の英語記事を元に、Lobsterrとして発信可能な日本語記事を書いてください。
+
+【条件】
+- 本文: 600〜700文字
+- 考察・感想: 200〜300文字（本文の後に「───」で区切り「考察・感想」見出しをつける）
+- 合計: 800〜1000文字
+- 読者: カルチャー・ビジネストレンドに関心のある25〜45歳の日本人
+- 文体: ですます調。知的だが親しみやすい。専門用語は噛み砕く
+- 英語固有名詞はカタカナ（初出は括弧で英語を併記）
+- 考察では日本や世界への示唆・個人的な視点を入れる
+
+元記事タイトル: ${a.title}
+元記事概要: ${a.description}`;
+
+    try {
+        const text    = await callClaude(prompt, 'claude-sonnet-4-6', 0.72, 3000);
+        const bodyId  = `body-${idx}`;
+        document.getElementById('panelContent').innerHTML = `
+            <div class="panel-type">Lobsterr 記事</div>
+            <h2 class="panel-title">${esc(a.title)}</h2>
+            <p class="panel-source">${esc(a.source)} &nbsp;—&nbsp;
+                <a href="${esc(a.link)}" target="_blank" rel="noopener noreferrer">原文を読む →</a>
+            </p>
+            <div class="panel-body" id="${bodyId}">${renderText(text)}</div>
+            <button class="panel-copy" onclick="copyText('${bodyId}')">クリップボードにコピー</button>
+        `;
+    } catch (e) { showPanelError(e.message); }
+    finally { resetBtn(btn, '記事'); }
+}
+
+function copyText(id) {
+    navigator.clipboard.writeText(document.getElementById(id)?.innerText || '')
+        .then(() => showToast('コピーしました'));
+}
+
+// ───────────────────────────────────────────
+// ARTICLE FETCH (full text via server proxy)
+// ───────────────────────────────────────────
+async function fetchFullArticle(url) {
+    const res = await fetch('/api/fetch', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ url }),
+    });
+    if (!res.ok) throw new Error('記事の取得に失敗しました');
+    const html = await res.text();
+    return extractArticleText(html);
+}
+
+function extractArticleText(html) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    // Remove boilerplate elements
+    ['script','style','nav','header','footer','aside','form','iframe',
+     'noscript','figure','figcaption','.ad','.ads','.advertisement',
+     '.sidebar','.related','.comments','[role="navigation"]'].forEach(sel => {
+        doc.querySelectorAll(sel).forEach(el => el.remove());
+    });
+    // Try common article selectors
+    const selectors = [
+        'article', '[role="main"]', 'main',
+        '.article-body', '.article-content', '.post-content',
+        '.entry-content', '.story-body', '.content-body',
+        '.post-body', '.article__body', '.article-text',
+    ];
+    for (const sel of selectors) {
+        const el = doc.querySelector(sel);
+        if (el) {
+            const text = el.innerText || el.textContent || '';
+            if (text.trim().length > 300) return text.replace(/\s{2,}/g,' ').trim();
+        }
+    }
+    return (doc.body?.innerText || doc.body?.textContent || '').replace(/\s{2,}/g,' ').trim();
+}
+
+// ───────────────────────────────────────────
+// 和訳
+// ───────────────────────────────────────────
+async function doTranslate(idx) {
+    const a   = allArticles[idx];
+    const btn = document.getElementById(`tr-${idx}`);
+    setCardBusy(btn, '…');
+    openPanelLoading('記事を取得・和訳しています…');
+
+    let articleText = '';
+    try {
+        articleText = await fetchFullArticle(a.link);
+    } catch {
+        articleText = `${a.title}\n\n${a.description}`;
+    }
+
+    const prompt =
+`以下の英語記事を自然な日本語に全文翻訳してください。
+
+【条件】
+- 英語の固有名詞はカタカナ（初出は括弧で英語を併記）
+- 元の段落構成を保つ
+- 翻訳本文のみを出力（前置きや説明は不要）
+
+${articleText.slice(0, 4000)}`;
+
+    try {
+        const text   = await callClaude(prompt, 'claude-sonnet-4-6', 0.3, 4000);
+        const bodyId = `tr-body-${idx}`;
+        document.getElementById('panelContent').innerHTML = `
+            <div class="panel-type">和訳</div>
+            <h2 class="panel-title">${esc(a.title)}</h2>
+            <p class="panel-source">${esc(a.source)} &nbsp;—&nbsp;
+                <a href="${esc(a.link)}" target="_blank" rel="noopener noreferrer">原文を読む →</a>
+            </p>
+            <div class="panel-body" id="${bodyId}">${renderText(text)}</div>
+            <button class="panel-copy" onclick="copyText('${bodyId}')">クリップボードにコピー</button>
+        `;
+    } catch (e) { showPanelError(e.message); }
+    finally { resetBtn(btn, '和訳'); }
+}
+
+// ───────────────────────────────────────────
+// 英語クイズ
+// ───────────────────────────────────────────
+async function doEnglishQuiz(idx) {
+    const a   = allArticles[idx];
+    const btn = document.getElementById(`en-${idx}`);
+    setCardBusy(btn, '…');
+    openPanelLoading('クイズを生成しています…');
+
+    let articleText = '';
+    try {
+        articleText = await fetchFullArticle(a.link);
+    } catch {
+        articleText = `${a.title}\n\n${a.description}`;
+    }
+
+    const prompt =
+`以下の英語記事から、英語学習に役立つ文を10〜15問選んでクイズを作ってください。
+
+【条件】
+- 記事中のイディオム・フレーズ・重要表現を優先して選ぶ
+- 各問：日本語訳と英語原文のペア
+- イディオム・難しい表現がある場合は "idiom" フィールドに簡潔な解説を追加（なければ空文字）
+- 必ずJSON配列のみを出力（前置きや説明は不要）
+
+出力形式（JSON配列）:
+[
+  {"jp": "日本語文", "en": "English sentence", "idiom": "解説または空文字"},
+  ...
+]
+
+記事:
+${articleText.slice(0, 4000)}`;
+
+    try {
+        const raw   = await callClaude(prompt, 'claude-sonnet-4-6', 0.4, 3000);
+        const match = raw.match(/\[[\s\S]*\]/);
+        if (!match) throw new Error('クイズデータを解析できませんでした');
+        const questions = JSON.parse(match[0]);
+        if (!questions.length) throw new Error('クイズが生成できませんでした');
+        renderQuiz(a, questions);
+    } catch (e) { showPanelError(e.message); }
+    finally { resetBtn(btn, '英語'); }
+}
+
+// ── Quiz state & renderer ──
+let quizState = { questions: [], current: 0, revealed: false };
+
+function renderQuiz(article, questions) {
+    quizState = { questions, current: 0, revealed: false };
+    document.getElementById('panelContent').innerHTML = `
+        <div class="panel-type">英語クイズ</div>
+        <h2 class="panel-title" style="font-size:18px;margin-bottom:6px">${esc(article.title)}</h2>
+        <p class="panel-source" style="margin-bottom:24px">${esc(article.source)}</p>
+        <div class="quiz-wrap" id="quizWrap"></div>
+    `;
+    renderQuizCard();
+}
+
+function renderQuizCard() {
+    const { questions, current, revealed } = quizState;
+    const q   = questions[current];
+    const wrap = document.getElementById('quizWrap');
+    if (!wrap) return;
+
+    wrap.innerHTML = `
+        <p class="quiz-progress">Question ${current + 1} / ${questions.length}</p>
+        <div class="quiz-card">
+            <p class="quiz-jp">${esc(q.jp)}</p>
+            <p class="quiz-en ${revealed ? 'show' : ''}">${esc(q.en)}</p>
+            ${q.idiom ? `<p class="quiz-idiom ${revealed ? 'show' : ''}">💡 ${esc(q.idiom)}</p>` : ''}
+        </div>
+        <div class="quiz-btn-row">
+            ${!revealed
+                ? `<button class="quiz-btn primary" onclick="quizReveal()">答えを見る</button>`
+                : `<button class="quiz-btn" onclick="quizPrev()" ${current === 0 ? 'disabled' : ''}>← 前へ</button>
+                   <button class="quiz-btn primary" onclick="quizNext()">
+                       ${current < questions.length - 1 ? '次へ →' : '最初から'}
+                   </button>`
+            }
+        </div>
+    `;
+}
+
+function quizReveal() { quizState.revealed = true;  renderQuizCard(); }
+function quizPrev()   { quizState.current--;  quizState.revealed = false; renderQuizCard(); }
+function quizNext()   {
+    if (quizState.current < quizState.questions.length - 1) {
+        quizState.current++;
+    } else {
+        quizState.current  = 0;
+    }
+    quizState.revealed = false;
+    renderQuizCard();
+}
+
+// ───────────────────────────────────────────
+// CLAUDE API
+// ───────────────────────────────────────────
+async function callClaude(prompt, model = 'claude-haiku-4-5-20251001', temperature = 0.5, maxTokens = 800) {
+    if (!currentApiKey) throw new Error('APIキーが設定されていません');
+
+    let res;
+    try {
+        res = await fetch('/api/claude', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+                apiKey: currentApiKey,
+                model,
+                max_tokens:  maxTokens,
+                temperature,
+                messages: [{ role: 'user', content: prompt }],
+            }),
+        });
+    } catch {
+        throw new Error('サーバーに接続できません（ローカル起動時は「node ~/Desktop/server.js」を実行してください）。');
+    }
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error?.message || `APIエラー ${res.status}`);
+    }
+
+    const data = await res.json();
+    return data.content?.[0]?.text?.trim() || '';
+}
+
+// ───────────────────────────────────────────
+// ADMIN
+// ───────────────────────────────────────────
+function renderAdmin() {
+    const sources = getSources();
+    const enabled = sources.filter(s => s.enabled).length;
+    document.getElementById('adminStats').textContent =
+        `全 ${sources.length} ソース / 有効 ${enabled} ソース`;
+
+    const tbody = document.getElementById('sourcesBody');
+    tbody.innerHTML = sources.map(s => `
+        <tr>
+            <td>
+                <label class="toggle">
+                    <input type="checkbox" ${s.enabled ? 'checked' : ''} onchange="toggleSource('${s.id}')">
+                    <span class="toggle-slider"></span>
+                </label>
+            </td>
+            <td class="source-name">${esc(s.name)}</td>
+            <td class="source-url" title="${esc(s.url)}">${esc(s.url)}</td>
+            <td>
+                <button class="btn-del" onclick="deleteSource('${s.id}')">削除</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// ───────────────────────────────────────────
+// VIEW SWITCHING
+// ───────────────────────────────────────────
+function showView(view) {
+    currentView = view;
+    document.getElementById('feedView').style.display  = view === 'feed'  ? 'block' : 'none';
+    document.getElementById('adminView').style.display = view === 'admin' ? 'block' : 'none';
+    document.getElementById('navFeed').className  = 'btn ' + (view === 'feed'  ? 'btn-active' : 'btn-ghost');
+    document.getElementById('navAdmin').className = 'btn ' + (view === 'admin' ? 'btn-active' : 'btn-ghost');
+    if (view === 'admin') renderAdmin();
+}
+
+// ───────────────────────────────────────────
+// SETTINGS
+// ───────────────────────────────────────────
+function openSettings() {
+    document.getElementById('apiKeyInput').value = currentApiKey;
+    document.getElementById('countInput').value  = articleCount;
+    document.getElementById('settingsOverlay').classList.add('open');
+}
+function closeSettings() { document.getElementById('settingsOverlay').classList.remove('open'); }
+function handleSettingsOverlay(e) { if (e.target === document.getElementById('settingsOverlay')) closeSettings(); }
+
+function saveSettings() {
+    const key   = document.getElementById('apiKeyInput').value.trim();
+    const count = parseInt(document.getElementById('countInput').value) || 20;
+    if (key) { localStorage.setItem('lobsterr_api_key', key); currentApiKey = key; }
+    localStorage.setItem('lobsterr_count', count);
+    articleCount = count;
+    closeSettings();
+    showToast('設定を保存しました');
+}
+
+// ───────────────────────────────────────────
+// PANEL (slide)
+// ───────────────────────────────────────────
+function openPanelLoading(msg) {
+    document.getElementById('panelContent').innerHTML = `
+        <div class="panel-loading">
+            <div class="spinner"></div>
+            <p style="font-size:13px;color:var(--muted)">${esc(msg)}</p>
+        </div>`;
+    document.getElementById('panelOverlay').classList.add('open');
+}
+function showPanelError(msg) {
+    document.getElementById('panelContent').innerHTML = `
+        <div class="panel-type" style="color:red">エラー</div>
+        <p style="font-size:14px;color:var(--muted)">${esc(msg)}</p>`;
+}
+function closePanel() { document.getElementById('panelOverlay').classList.remove('open'); }
+function handlePanelOverlay(e) { if (e.target === document.getElementById('panelOverlay')) closePanel(); }
+
+// ───────────────────────────────────────────
+// FEED STATE HELPERS
+// ───────────────────────────────────────────
+function showFeedLoading(msg) {
+    document.getElementById('feedContainer').innerHTML = `
+        <div class="state-box">
+            <div class="spinner"></div>
+            <p style="font-size:13px;color:var(--muted)">${esc(msg)}</p>
+        </div>`;
+}
+function showFeedState(title, sub) {
+    document.getElementById('feedContainer').innerHTML = `
+        <div class="state-box">
+            <h3>${esc(title)}</h3>
+            <p>${esc(sub)}</p>
+        </div>`;
+    document.getElementById('refreshBtn').disabled    = false;
+    document.getElementById('refreshBtn').textContent = 'フィードを取得';
+}
+
+// ───────────────────────────────────────────
+// UTILS
+// ───────────────────────────────────────────
+function setStatus(t) { document.getElementById('statusBar').textContent = t; }
+
+function setCardBusy(btn, label) { btn.disabled = true; btn.textContent = label; }
+function resetBtn(btn, label)    { btn.disabled = false; btn.textContent = label; }
+
+function renderText(text) {
+    return text.split('\n').filter(l => l.trim()).map(l => {
+        if (/^─{2,}/.test(l)) return `<div style="border-top:1px solid var(--border);margin:24px 0 20px"></div>`;
+        if (/^(考察・感想|##?)/.test(l)) return `<h3>${esc(l.replace(/^[#\s]+/, ''))}</h3>`;
+        return `<p>${esc(l)}</p>`;
+    }).join('');
+}
+
+function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+function esc(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ───────────────────────────────────────────
+// INIT
+// ───────────────────────────────────────────
+showView('feed');
+if (!currentApiKey) setTimeout(openSettings, 400);
+</script>
+</body>
+</html>

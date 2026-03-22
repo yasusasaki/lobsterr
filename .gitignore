@@ -1,0 +1,6 @@
+.DS_Store
+node_modules/
+*.rtf
+.env
+.env.local
+env.local.rtf
