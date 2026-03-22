@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LOBSTERR</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -44,7 +44,7 @@
         }
 
         .logo {
-            font-family: 'Cormorant Garamond', serif;
+            font-family: 'Space Grotesk', sans-serif;
             font-size: 24px;
             font-weight: 600;
             letter-spacing: 0.2em;
@@ -102,7 +102,7 @@
             padding: 100px 20px;
         }
         .state-box h3 {
-            font-family: 'Cormorant Garamond', serif;
+            font-family: 'Space Grotesk', sans-serif;
             font-size: 28px;
             font-weight: 400;
             margin-bottom: 12px;
@@ -173,7 +173,7 @@
         .li-date { font-size: 11px; color: var(--muted); margin-left: auto; }
 
         .li-title {
-            font-family: 'Cormorant Garamond', serif;
+            font-family: 'Space Grotesk', sans-serif;
             font-size: 19px;
             font-weight: 600;
             line-height: 1.3;
@@ -335,7 +335,7 @@
             margin-bottom: 12px;
         }
         .panel-title {
-            font-family: 'Cormorant Garamond', serif;
+            font-family: 'Space Grotesk', sans-serif;
             font-size: 24px;
             font-weight: 600;
             line-height: 1.35;
@@ -351,7 +351,7 @@
         .panel-body { font-size: 15px; line-height: 1.95; }
         .panel-body p { margin-bottom: 16px; }
         .panel-body h3 {
-            font-family: 'Cormorant Garamond', serif;
+            font-family: 'Space Grotesk', sans-serif;
             font-size: 20px;
             font-weight: 600;
             margin: 28px 0 12px;
@@ -407,7 +407,7 @@
             to   { transform: translateY(0);    opacity: 1; }
         }
         .modal-title {
-            font-family: 'Cormorant Garamond', serif;
+            font-family: 'Space Grotesk', sans-serif;
             font-size: 24px;
             font-weight: 600;
             margin-bottom: 8px;
@@ -454,7 +454,7 @@
             gap: 12px;
         }
         .admin-title {
-            font-family: 'Cormorant Garamond', serif;
+            font-family: 'Space Grotesk', sans-serif;
             font-size: 26px;
             font-weight: 600;
         }
@@ -930,21 +930,33 @@ function fmtDate(s) {
 }
 
 // ───────────────────────────────────────────
-// AI FILTERING
+// CACHE (sessionStorage, 30分TTL)
 // ───────────────────────────────────────────
-async function filterWithAI(articles) {
-    if (!currentApiKey) return articles;
-    const scored = [];
-    const BATCH  = 20;
-    let processed = 0;
+const CACHE_KEY = 'lobsterr_feed_v1';
+const CACHE_TTL = 30 * 60 * 1000;
 
-    for (let i = 0; i < articles.length; i += BATCH) {
-        const batch = articles.slice(i, i + BATCH);
-        const list  = batch.map((a, n) =>
-            `${n + 1}. [${a.source}] "${a.title}" — ${a.description.slice(0, 140)}`
-        ).join('\n');
+function getCache() {
+    try {
+        const c = sessionStorage.getItem(CACHE_KEY);
+        if (!c) return null;
+        const { articles, ts } = JSON.parse(c);
+        if (Date.now() - ts > CACHE_TTL) return null;
+        return articles;
+    } catch { return null; }
+}
+function setCache(articles) {
+    try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ articles, ts: Date.now() })); } catch {}
+}
+function clearCache() { sessionStorage.removeItem(CACHE_KEY); }
 
-        const prompt =
+// ───────────────────────────────────────────
+// AI FILTERING（並列実行）
+// ───────────────────────────────────────────
+async function scoreBatch(batch) {
+    const list = batch.map((a, n) =>
+        `${n + 1}. [${a.source}] "${a.title}" — ${a.description.slice(0, 120)}`
+    ).join('\n');
+    const prompt =
 `${LOBSTERR_PERSONA}
 
 Rate each article 1–5 for Lobsterr fit.
@@ -952,39 +964,59 @@ Rate each article 1–5 for Lobsterr fit.
 
 ${list}
 
-Reply ONLY with a JSON array of integers in order, e.g. [5,3,2,4,1,...]`;
+Reply ONLY with a JSON array of integers, e.g. [5,3,2,4,1,...]`;
+    try {
+        const res    = await callClaude(prompt, 'claude-haiku-4-5-20251001', 0.1, 200);
+        const match  = res.match(/\[[\d,\s]+\]/);
+        const scores = match ? JSON.parse(match[0]) : [];
+        batch.forEach((a, n) => { a.score = scores[n] ?? 3; });
+    } catch {
+        batch.forEach(a => { a.score = 3; });
+    }
+}
 
-        try {
-            const res    = await callClaude(prompt, 'claude-haiku-4-5-20251001', 0.1, 300);
-            const match  = res.match(/\[[\d,\s]+\]/);
-            const scores = match ? JSON.parse(match[0]) : [];
-            batch.forEach((a, n) => {
-                a.score = scores[n] ?? 3;
-                if (a.score >= 3) scored.push(a);
-            });
-        } catch {
-            batch.forEach(a => { a.score = 3; scored.push(a); });
-        }
+async function filterWithAI(articles) {
+    if (!currentApiKey) { articles.forEach(a => a.score = 3); return articles; }
 
-        processed += batch.length;
-        setStatus(`フィルタリング中… ${processed} / ${articles.length} 件`);
+    const BATCH      = 25;   // 1リクエストあたりの記事数
+    const CONCURRENT = 5;    // 同時実行数
+
+    // バッチ分割
+    const batches = [];
+    for (let i = 0; i < articles.length; i += BATCH) batches.push(articles.slice(i, i + BATCH));
+
+    // 並列実行（CONCURRENT本ずつ）
+    let done = 0;
+    for (let i = 0; i < batches.length; i += CONCURRENT) {
+        await Promise.all(batches.slice(i, i + CONCURRENT).map(b => scoreBatch(b)));
+        done += Math.min(CONCURRENT, batches.length - i);
+        setStatus(`フィルタリング中… ${Math.min(done * BATCH, articles.length)} / ${articles.length} 件`);
     }
 
-    return scored.sort((a, b) => b.score - a.score);
+    return articles.filter(a => a.score >= 3).sort((a, b) => b.score - a.score);
 }
 
 // ───────────────────────────────────────────
-// MAIN LOADER
+// MAIN LOADER（プログレッシブ表示）
 // ───────────────────────────────────────────
-async function loadFeed() {
+async function loadFeed(forceRefresh = true) {
     if (!currentApiKey) { openSettings(); showToast('まずAPIキーを設定してください'); return; }
 
-    const btn = document.getElementById('refreshBtn');
-    btn.disabled    = true;
-    btn.textContent = '取得中…';
+    // キャッシュがあれば即表示
+    if (!forceRefresh) {
+        const cached = getCache();
+        if (cached && cached.length) {
+            allArticles = cached; displayedCount = 0;
+            renderFeedList();
+            setStatus(`${allArticles.length} 件（キャッシュ）— 更新するには「フィードを更新」を押してください`);
+            return;
+        }
+    }
 
-    allArticles    = [];
-    displayedCount = 0;
+    const btn = document.getElementById('refreshBtn');
+    btn.disabled = true; btn.textContent = '取得中…';
+    clearCache();
+    allArticles = []; displayedCount = 0;
     document.getElementById('loadMoreArea').innerHTML = '';
 
     const enabled = getEnabledSources();
@@ -994,38 +1026,36 @@ async function loadFeed() {
     setStatus('取得中…');
 
     try {
-        // Fetch in parallel batches (avoid overwhelming rss2json)
-        const PARALLEL = 6;
-        let raw = [];
-        for (let i = 0; i < enabled.length; i += PARALLEL) {
-            const batch = enabled.slice(i, i + PARALLEL);
-            const results = await Promise.all(batch.map(fetchRSS));
-            raw = raw.concat(results.flat());
-            setStatus(`取得中… ${Math.min(i + PARALLEL, enabled.length)} / ${enabled.length} ソース完了`);
-        }
+        // RSS を全ソース並列取得
+        const results = await Promise.all(enabled.map(fetchRSS));
+        let raw = results.flat();
 
         if (!raw.length) {
             showFeedState('記事を取得できませんでした', 'ネットワーク接続やRSS URLを確認してください。');
             return;
         }
 
-        // Deduplicate by URL
+        // 重複排除
         const seen = new Set();
-        raw = raw.filter(a => { if (seen.has(a.link)) return false; seen.add(a.link); return true; });
+        raw = raw.filter(a => { if (!a.link || seen.has(a.link)) return false; seen.add(a.link); return true; });
 
-        setStatus(`${raw.length} 件をフィルタリング中…`);
-        showFeedLoading(`${raw.length} 件の記事をLobsterrフィルタリング中…`);
-
-        allArticles = await filterWithAI(raw);
-
-        setStatus(`${allArticles.length} 件 / ${raw.length} 件中`);
+        // ① まず全記事をそのまま表示（score=3）
+        raw.forEach(a => a.score = 3);
+        allArticles = raw; displayedCount = 0;
         renderFeedList();
+        setStatus(`${raw.length} 件取得 — AIフィルタリング中…`);
+
+        // ② バックグラウンドでAIフィルタリング → 完了したら再描画
+        allArticles = await filterWithAI(raw);
+        displayedCount = 0;
+        renderFeedList();
+        setStatus(`${allArticles.length} 件 / ${raw.length} 件中`);
+        setCache(allArticles);
 
     } catch (e) {
         showFeedState('エラーが発生しました', e.message);
     } finally {
-        btn.disabled    = false;
-        btn.textContent = 'フィードを更新';
+        btn.disabled = false; btn.textContent = 'フィードを更新';
     }
 }
 
@@ -1531,7 +1561,17 @@ function esc(str) {
 // INIT
 // ───────────────────────────────────────────
 showView('feed');
-if (!currentApiKey) setTimeout(openSettings, 400);
+if (!currentApiKey) {
+    setTimeout(openSettings, 400);
+} else {
+    // キャッシュがあれば起動時に即表示
+    const cached = getCache();
+    if (cached && cached.length) {
+        allArticles = cached; displayedCount = 0;
+        renderFeedList();
+        setStatus(`${allArticles.length} 件（キャッシュ）`);
+    }
+}
 </script>
 </body>
 </html>
