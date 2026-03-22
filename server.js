@@ -156,6 +156,42 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    // RSS fetch proxy
+    if (req.method === 'GET' && req.url.startsWith('/api/rss?')) {
+        const params = new URL('http://localhost' + req.url).searchParams;
+        const rssUrl = params.get('url');
+        const count  = params.get('count') || '20';
+        if (!rssUrl) {
+            res.writeHead(400, { 'Content-Type': 'application/json', ...CORS_HEADERS });
+            res.end(JSON.stringify({ status: 'error', message: 'Missing url param' }));
+            return;
+        }
+        const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&count=${count}`;
+        const parsed = new URL(apiUrl);
+        const reqOpts = {
+            hostname: parsed.hostname,
+            path: parsed.pathname + parsed.search,
+            method: 'GET',
+            headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' },
+            timeout: 10000,
+        };
+        const apiReq = https.request(reqOpts, apiRes => {
+            let data = '';
+            apiRes.on('data', chunk => data += chunk);
+            apiRes.on('end', () => {
+                res.writeHead(200, { 'Content-Type': 'application/json', ...CORS_HEADERS });
+                res.end(data);
+            });
+        });
+        apiReq.on('error', err => {
+            res.writeHead(502, { 'Content-Type': 'application/json', ...CORS_HEADERS });
+            res.end(JSON.stringify({ status: 'error', message: err.message }));
+        });
+        apiReq.on('timeout', () => { apiReq.destroy(); });
+        apiReq.end();
+        return;
+    }
+
     // Article fetch proxy
     if (req.method === 'POST' && req.url === '/api/fetch') {
         let body = '';

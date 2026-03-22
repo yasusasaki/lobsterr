@@ -838,7 +838,7 @@ function exportSources() {
 // RSS FETCHING
 // ───────────────────────────────────────────
 async function fetchRSS(source) {
-    const url = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(source.url)}&count=${articleCount}`;
+    const url = `/api/rss?url=${encodeURIComponent(source.url)}&count=${articleCount}`;
     try {
         const res  = await fetch(url);
         const data = await res.json();
