@@ -579,10 +579,66 @@
         .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
         @media (max-width: 640px) {
-            header, .subheader { padding-left: 20px; padding-right: 20px; }
-            #feedMain, #adminMain { padding-left: 20px; padding-right: 20px; }
-            .panel { padding: 36px 24px 48px; }
+            /* Header */
+            header {
+                padding: 12px 16px;
+                gap: 10px;
+            }
+            header img { height: 26px !important; }
+            .header-nav { gap: 4px; }
+            .btn { padding: 6px 10px; font-size: 10px; }
+
+            /* Subheader */
+            .subheader { padding: 8px 16px; }
+            .tagline { display: none; }
+
+            /* Feed */
+            #feedMain { padding: 0 16px 80px; }
+
+            /* List items */
+            .list-item { padding: 16px 0; gap: 8px; }
+            .li-title { font-size: 17px; }
+            .li-excerpt { font-size: 12px; -webkit-line-clamp: 2; }
+            .li-date { font-size: 10px; }
+            .source-tag { font-size: 8px; }
+
+            /* Action buttons — bigger tap targets */
+            .li-actions { gap: 6px; }
+            .btn-sm {
+                padding: 9px 10px;
+                font-size: 11px;
+                flex: 1;
+            }
+
+            /* Slide panel — full screen */
+            .panel {
+                width: 100%;
+                padding: 24px 20px 60px;
+            }
+            .panel-title { font-size: 20px; }
+            .panel-body  { font-size: 14px; }
+
+            /* Settings modal — full screen */
+            .modal {
+                width: 100%;
+                height: 100%;
+                max-width: 100%;
+                border-radius: 0;
+                padding: 32px 20px;
+                overflow-y: auto;
+            }
+
+            /* Admin */
+            #adminMain { padding: 20px 16px 80px; }
+            .admin-header { flex-direction: column; align-items: flex-start; }
             .add-source-form { grid-template-columns: 1fr; }
+
+            /* Table —横スクロール */
+            .sources-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .sources-table .source-url { max-width: 160px; }
+
+            /* Toast */
+            .toast { width: calc(100% - 40px); text-align: center; white-space: normal; }
         }
     </style>
 </head>
